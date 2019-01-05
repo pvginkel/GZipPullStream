@@ -1,0 +1,15 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <Authors>Pieter van Ginkel</Authors>
+    <Company></Company>
+    <PackageProjectUrl>https://github.com/pvginkel/GZipPullStream</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/pvginkel/GZipPullStream</RepositoryUrl>
+    <PackageLicenseUrl>https://www.apache.org/licenses/LICENSE-2.0</PackageLicenseUrl>
+    <Copyright>Pieter van Ginkel © 2019</Copyright>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="SharpZipLib" Version="1.1.0" />
+  </ItemGroup>
+</Project>
