@@ -7,22 +7,44 @@ using ICSharpCode.SharpZipLib.Checksum;
 using ICSharpCode.SharpZipLib.GZip;
 using ICSharpCode.SharpZipLib.Zip.Compression;
 
+#pragma warning disable 1591
+
 namespace GZipPullStream
 {
+    /// <summary>
+    /// <see cref="GZipStream"/> implementation that allows pulling compressed
+    /// data from it, instead of it writing compressed data to the base stream.
+    /// </summary>
     public class GZipPullStream : DeflatePullStream
     {
         private readonly Crc32 _crc = new Crc32();
 
+        /// <summary>
+        /// Create a new <see cref="GZipPullStream"/> instance.
+        /// </summary>
+        /// <param name="stream">Stream to read uncompressed data from.</param>
         public GZipPullStream(Stream stream)
             : this(stream, false)
         {
         }
 
+        /// <summary>
+        /// Create a new <see cref="GZipPullStream"/> instance.
+        /// </summary>
+        /// <param name="stream">Stream to read uncompressed data from.</param>
+        /// <param name="leaveOpen">Whether to leave the base stream open when closing this stream.</param>
         public GZipPullStream(Stream stream, bool leaveOpen)
             : this(stream, leaveOpen, null, DefaultBufferSize)
         {
         }
 
+        /// <summary>
+        /// Create a new <see cref="GZipPullStream"/> instance.
+        /// </summary>
+        /// <param name="stream">Stream to read uncompressed data from.</param>
+        /// <param name="leaveOpen">Whether to leave the base stream open when closing this stream.</param>
+        /// <param name="compressionLevel">Compression level.</param>
+        /// <param name="bufferSize">Buffer size.</param>
         public GZipPullStream(Stream stream, bool leaveOpen, CompressionLevel? compressionLevel, int bufferSize)
             : base(stream, leaveOpen, bufferSize, new Deflater(GetCompressionLevel(compressionLevel), true))
         {
