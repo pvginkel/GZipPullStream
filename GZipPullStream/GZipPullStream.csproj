@@ -9,6 +9,7 @@
     <RepositoryUrl>https://github.com/pvginkel/GZipPullStream</RepositoryUrl>
     <PackageLicenseUrl>https://www.apache.org/licenses/LICENSE-2.0</PackageLicenseUrl>
     <Copyright>Pieter van Ginkel © 2019</Copyright>
+    <Version>1.0.1</Version>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="SharpZipLib" Version="1.1.0" />
