@@ -6,6 +6,8 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using ICSharpCode.SharpZipLib.GZip;
+using ICSharpCode.SharpZipLib.Zip.Compression;
+using ICSharpCode.SharpZipLib.Zip.Compression.Streams;
 using NUnit.Framework;
 
 namespace GZipPullStream.Test
@@ -31,7 +33,7 @@ namespace GZipPullStream.Test
         [TestCase(10000)]
         [TestCase(50000)]
         [TestCase(100000)]
-        public void FixedInput(int length)
+        public void GZipFixedInput(int length)
         {
             var input = new byte[length];
 
@@ -40,7 +42,7 @@ namespace GZipPullStream.Test
                 input[i] = (byte)(i & 0xff);
             }
 
-            AssertInput(input);
+            AssertInput(input, true, p => new GZipPullStream(p), p => new GZipOutputStream(p), p => new GZipStream(p, CompressionMode.Decompress));
         }
 
         [Test]
@@ -56,7 +58,7 @@ namespace GZipPullStream.Test
         [TestCase(10000)]
         [TestCase(50000)]
         [TestCase(100000)]
-        public Task FixedInputAsync(int length)
+        public void DeflaterFixedInput(int length)
         {
             var input = new byte[length];
 
@@ -65,10 +67,60 @@ namespace GZipPullStream.Test
                 input[i] = (byte)(i & 0xff);
             }
 
-            return AssertInputAsync(input);
+            AssertInput(input, false, p => new DeflatePullStream(p), p => new DeflaterOutputStream(p, new Deflater(Deflater.DEFAULT_COMPRESSION, true)), p => new DeflateStream(p, CompressionMode.Decompress));
         }
 
-        private void AssertInput(byte[] expected)
+        [Test]
+        [TestCase(0)]
+        [TestCase(1)]
+        [TestCase(5)]
+        [TestCase(10)]
+        [TestCase(50)]
+        [TestCase(100)]
+        [TestCase(500)]
+        [TestCase(1000)]
+        [TestCase(5000)]
+        [TestCase(10000)]
+        [TestCase(50000)]
+        [TestCase(100000)]
+        public Task GZipFixedInputAsync(int length)
+        {
+            var input = new byte[length];
+
+            for (int i = 0; i < length; i++)
+            {
+                input[i] = (byte)(i & 0xff);
+            }
+
+            return AssertInputAsync(input, true, p => new GZipPullStream(p), p => new GZipOutputStream(p), p => new GZipStream(p, CompressionMode.Decompress));
+        }
+
+        [Test]
+        [TestCase(0)]
+        [TestCase(1)]
+        [TestCase(5)]
+        [TestCase(10)]
+        [TestCase(50)]
+        [TestCase(100)]
+        [TestCase(500)]
+        [TestCase(1000)]
+        [TestCase(5000)]
+        [TestCase(10000)]
+        [TestCase(50000)]
+        [TestCase(100000)]
+        public Task DeflaterFixedInputAsync(int length)
+        {
+            var input = new byte[length];
+
+            for (int i = 0; i < length; i++)
+            {
+                input[i] = (byte)(i & 0xff);
+            }
+
+            return AssertInputAsync(input, false, p => new DeflatePullStream(p), p => new DeflaterOutputStream(p, new Deflater(Deflater.DEFAULT_COMPRESSION, true)), p => new DeflateStream(p, CompressionMode.Decompress));
+        }
+
+        private void AssertInput(byte[] expected, bool clearTimestamp, Func<Stream, Stream> createPullStream, Func<Stream, Stream> createDeflaterStream, Func<Stream, Stream> createInflateStream)
         {
             // Compress using the pull stream.
 
@@ -76,7 +128,7 @@ namespace GZipPullStream.Test
 
             using (var target = new MemoryStream())
             {
-                using (var source = new GZipPullStream(new MemoryStream(expected)))
+                using (var source = createPullStream(new MemoryStream(expected)))
                 {
                     source.CopyTo(target);
                 }
@@ -84,10 +136,10 @@ namespace GZipPullStream.Test
                 compressed = target.ToArray();
             }
 
-            Validate(expected, compressed);
+            Validate(expected, clearTimestamp, compressed, createDeflaterStream, createInflateStream);
         }
 
-        private async Task AssertInputAsync(byte[] expected)
+        private async Task AssertInputAsync(byte[] expected, bool clearTimestamp, Func<Stream, Stream> createPullStream, Func<Stream, Stream> createDeflaterStream, Func<Stream, Stream> createInflateStream)
         {
             // Write the input to a file so we have some real async stuff.
 
@@ -101,14 +153,14 @@ namespace GZipPullStream.Test
                 // Compress using the pull stream.
 
                 using (var target = File.Create(tmpCompressed))
-                using (var source = new GZipPullStream(File.OpenRead(tmpSource)))
+                using (var source = createPullStream(File.OpenRead(tmpSource)))
                 {
                     await source.CopyToAsync(target);
                 }
 
                 var compressed = File.ReadAllBytes(tmpCompressed);
 
-                Validate(expected, compressed);
+                Validate(expected, clearTimestamp, compressed, createDeflaterStream, createInflateStream);
             }
             finally
             {
@@ -117,7 +169,7 @@ namespace GZipPullStream.Test
             }
         }
 
-        private void Validate(byte[] expected, byte[] compressed)
+        private void Validate(byte[] expected, bool clearTimestamp, byte[] compressed, Func<Stream, Stream> createDeflaterStream, Func<Stream, Stream> createInflateStream)
         {
             // Compress again using the SharpZipLib writer.
 
@@ -126,7 +178,7 @@ namespace GZipPullStream.Test
             using (var source = new MemoryStream(expected))
             using (var target = new MemoryStream())
             {
-                using (var gzTarget = new GZipOutputStream(target))
+                using (var gzTarget = createDeflaterStream(target))
                 {
                     source.CopyTo(gzTarget);
                 }
@@ -134,13 +186,30 @@ namespace GZipPullStream.Test
                 expectedCompressed = target.ToArray();
             }
 
-            // Byte 4-8 in the compressed output is a timestamp. We need to clear
-            // this because this is not deterministic.
+            if (clearTimestamp)
+            {
+                // Byte 4-8 in the compressed output is a timestamp. We need to clear
+                // this because this is not deterministic.
 
-            ClearDate(compressed);
-            ClearDate(expectedCompressed);
+                ClearDate(compressed);
+                ClearDate(expectedCompressed);
+            }
 
             Assert.AreEqual(expectedCompressed, compressed);
+
+            // Decompress using the BCL GZipStream.
+
+            byte[] actual;
+
+            using (var source = createInflateStream(new MemoryStream(compressed)))
+            using (var target = new MemoryStream())
+            {
+                source.CopyTo(target);
+
+                actual = target.ToArray();
+            }
+
+            Assert.AreEqual(expected, actual);
         }
 
         private void ClearDate(byte[] compressed)
