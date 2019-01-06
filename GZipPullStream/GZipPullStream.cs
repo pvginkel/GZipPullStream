@@ -17,7 +17,6 @@ namespace GZipPullStream
     {
         private readonly Stream stream;
         private readonly bool leaveOpen;
-        private readonly bool skipHeader;
         private readonly Deflater deflater;
         private readonly byte[] buffer;
         private ArraySegment<byte> available;
@@ -43,18 +42,17 @@ namespace GZipPullStream
         }
 
         public GZipPullStream(Stream stream, bool leaveOpen)
-            : this(stream, leaveOpen, null, 4096, false)
+            : this(stream, leaveOpen, null, 4096)
         {
         }
 
-        public GZipPullStream(Stream stream, bool leaveOpen, CompressionLevel? compressionLevel, int bufferSize, bool skipHeader)
+        public GZipPullStream(Stream stream, bool leaveOpen, CompressionLevel? compressionLevel, int bufferSize)
         {
             this.stream = stream;
             this.leaveOpen = leaveOpen;
-            this.skipHeader = skipHeader;
             this.buffer = new byte[bufferSize];
             this.deflater = new Deflater(GetCompressionLevel(compressionLevel), true);
-            this.state = skipHeader ? State.Content : State.Header;
+            this.state = State.Header;
         }
 
         private int GetCompressionLevel(CompressionLevel? compressionLevel)
@@ -150,7 +148,7 @@ namespace GZipPullStream
 
                     Debug.Assert(deflater.IsFinished);
                 }
-                state = skipHeader ? State.Finished : State.Footer;
+                state = State.Footer;
                 return TryReadAvailable(buffer, offset, count, out read);
             }
             if (deflater.IsNeedingInput)
