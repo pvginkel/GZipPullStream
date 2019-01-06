@@ -44,20 +44,6 @@ namespace GZipPullStream.Test
         }
 
         [Test]
-        [TestCase(50, 500 * 1024)]
-        public void BurnInTest(int iterations, int maxSize)
-        {
-            var random = new Random();
-
-            for (int i = 0; i < iterations; i++)
-            {
-                var input = new byte[random.Next(0, maxSize)];
-                random.NextBytes(input);
-                AssertInput(input);
-            }
-        }
-
-        [Test]
         [TestCase(0)]
         [TestCase(1)]
         [TestCase(5)]
@@ -80,20 +66,6 @@ namespace GZipPullStream.Test
             }
 
             return AssertInputAsync(input);
-        }
-
-        [Test]
-        [TestCase(50, 500 * 1024)]
-        public async Task BurnInTestAsync(int iterations, int maxSize)
-        {
-            var random = new Random();
-
-            for (int i = 0; i < iterations; i++)
-            {
-                var input = new byte[random.Next(0, maxSize)];
-                random.NextBytes(input);
-                await AssertInputAsync(input);
-            }
         }
 
         private void AssertInput(byte[] expected)
@@ -169,20 +141,6 @@ namespace GZipPullStream.Test
             ClearDate(expectedCompressed);
 
             Assert.AreEqual(expectedCompressed, compressed);
-
-            // Decompress using the BCL GZipStream.
-
-            byte[] actual;
-
-            using (var source = new GZipStream(new MemoryStream(compressed), CompressionMode.Decompress))
-            using (var target = new MemoryStream())
-            {
-                source.CopyTo(target);
-
-                actual = target.ToArray();
-            }
-
-            Assert.AreEqual(expected, actual);
         }
 
         private void ClearDate(byte[] compressed)
